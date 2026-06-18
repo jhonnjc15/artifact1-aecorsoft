@@ -1,0 +1,103 @@
+{
+  "Comment": "Ejecutar AecorSoft QA, validar llegada a S3 y agregar particion Athena",
+  "StartAt": "RunScript",
+  "States": {
+    "RunScript": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:ssm:sendCommand",
+      "Parameters": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "${instance_id}"
+        ],
+        "Parameters": {
+          "commands": ${commands_json}
+        }
+      },
+      "ResultPath": "$.run_script_result",
+      "Next": "WaitOutput",
+      "Retry": [
+        {
+          "ErrorEquals": ["SSM.InternalServerError", "SSM.InvalidInstanceId"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "WaitOutput": {
+      "Type": "Wait",
+      "Seconds": ${wait_seconds},
+      "Next": "ValidateS3Output"
+    },
+    "ValidateS3Output": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:s3:listObjectsV2",
+      "Parameters": {
+        "Bucket": "${bucket}",
+        "Prefix.$": "States.Format('${base_path}/codproceso={}/', $.codproceso)"
+      },
+      "Next": "CheckIfDataArrived",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "CheckIfDataArrived": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.KeyCount",
+          "NumericGreaterThan": 0,
+          "Next": "AddPartitionAthena"
+        }
+      ],
+      "Default": "WaitOutput"
+    },
+    "AddPartitionAthena": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:athena:startQueryExecution",
+      "Parameters": {
+        "QueryString.$": "States.Format('ALTER TABLE ${database_name}.${table_name} ADD IF NOT EXISTS PARTITION (codproceso=\\'{}\\') LOCATION \\'s3://${bucket}/${base_path}/codproceso={}/\\'', $.codproceso, $.codproceso)",
+        "ResultConfiguration": {
+          "OutputLocation": "s3://${athena_results_bucket}/athena-results/"
+        }
+      },
+      "ResultPath": "$.add_partition_result",
+      "Next": "NotifySuccess",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "NotifySuccess": {
+      "Type": "Pass",
+      "Result": {
+        "status": "SUCCESS"
+      },
+      "End": true
+    },
+    "NotifyFailure": {
+      "Type": "Fail",
+      "Cause": "Error en la ejecucion de la Step Function Aecorsoft"
+    }
+  }
+}
