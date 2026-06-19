@@ -1,8 +1,8 @@
 {
-  "Comment": "Ejecutar AecorSoft QA, validar llegada a S3 y agregar particion Athena",
-  "StartAt": "RunScript",
+  "Comment": "Ejecutar AecorSoft, parsear resultado con Lambda, validar llegada a S3 y agregar particion Athena",
+  "StartAt": "RunAecorsoftCLI",
   "States": {
-    "RunScript": {
+    "RunAecorsoftCLI": {
       "Type": "Task",
       "Resource": "arn:aws:states:::aws-sdk:ssm:sendCommand",
       "Parameters": {
@@ -15,7 +15,7 @@
         }
       },
       "ResultPath": "$.run_script_result",
-      "Next": "WaitOutput",
+      "Next": "WaitCommand",
       "Retry": [
         {
           "ErrorEquals": ["SSM.InternalServerError", "SSM.InvalidInstanceId"],
@@ -31,18 +31,112 @@
         }
       ]
     },
-    "WaitOutput": {
+    "WaitCommand": {
       "Type": "Wait",
       "Seconds": ${wait_seconds},
-      "Next": "ValidateS3Output"
+      "Next": "GetCommandInvocation"
+    },
+    "GetCommandInvocation": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
+      "Parameters": {
+        "CommandId.$": "$.run_script_result.Command.CommandId",
+        "InstanceId": "${instance_id}"
+      },
+      "ResultPath": "$.command_invocation",
+      "Next": "CheckCommandStatus",
+      "Retry": [
+        {
+          "ErrorEquals": ["SSM.InvocationDoesNotExist", "SSM.InternalServerError"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "CheckCommandStatus": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "Variable": "$.command_invocation.Status",
+              "StringEquals": "Pending"
+            },
+            {
+              "Variable": "$.command_invocation.Status",
+              "StringEquals": "InProgress"
+            },
+            {
+              "Variable": "$.command_invocation.Status",
+              "StringEquals": "Delayed"
+            },
+            {
+              "Variable": "$.command_invocation.Status",
+              "StringEquals": "Cancelling"
+            }
+          ],
+          "Next": "WaitCommand"
+        }
+      ],
+      "Default": "ParseAecorsoftResult"
+    },
+    "ParseAecorsoftResult": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${parser_lambda_arn}",
+        "Payload": {
+          "ssm_status.$": "$.command_invocation.Status",
+          "response_code.$": "$.command_invocation.ResponseCode",
+          "standard_output.$": "$.command_invocation.StandardOutputContent",
+          "standard_error.$": "$.command_invocation.StandardErrorContent",
+          "bucket": "${bucket}",
+          "base_path": "${base_path}"
+        }
+      },
+      "ResultPath": "$.parse_result",
+      "Next": "CheckAecorsoftResult",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "CheckAecorsoftResult": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.parse_result.Payload.aecorsoft_status",
+          "StringEquals": "SUCCESS",
+          "Next": "ValidateS3Output"
+        }
+      ],
+      "Default": "NotifyFailure"
     },
     "ValidateS3Output": {
       "Type": "Task",
       "Resource": "arn:aws:states:::aws-sdk:s3:listObjectsV2",
       "Parameters": {
-        "Bucket": "${bucket}",
-        "Prefix.$": "States.Format('${base_path}/codproceso={}/', $.codproceso)"
+        "Bucket.$": "$.parse_result.Payload.bucket",
+        "Prefix.$": "$.parse_result.Payload.partition_prefix"
       },
+      "ResultPath": "$.s3_validation",
       "Next": "CheckIfDataArrived",
       "Catch": [
         {
@@ -55,18 +149,23 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.KeyCount",
+          "Variable": "$.s3_validation.KeyCount",
           "NumericGreaterThan": 0,
           "Next": "AddPartitionAthena"
         }
       ],
-      "Default": "WaitOutput"
+      "Default": "WaitS3Output"
+    },
+    "WaitS3Output": {
+      "Type": "Wait",
+      "Seconds": ${wait_seconds},
+      "Next": "ValidateS3Output"
     },
     "AddPartitionAthena": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::aws-sdk:athena:startQueryExecution",
+      "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
       "Parameters": {
-        "QueryString.$": "States.Format('ALTER TABLE ${database_name}.${table_name} ADD IF NOT EXISTS PARTITION (codproceso=\\'{}\\') LOCATION \\'s3://${bucket}/${base_path}/codproceso={}/\\'', $.codproceso, $.codproceso)",
+        "QueryString.$": "States.Format('ALTER TABLE ${database_name}.${table_name} ADD IF NOT EXISTS PARTITION (codproceso=\\'{}\\') LOCATION \\'{}\\'', $.parse_result.Payload.codproceso, $.parse_result.Payload.partition_location)",
         "ResultConfiguration": {
           "OutputLocation": "s3://${athena_results_bucket}/athena-results/"
         }
@@ -90,8 +189,10 @@
     },
     "NotifySuccess": {
       "Type": "Pass",
-      "Result": {
-        "status": "SUCCESS"
+      "Parameters": {
+        "status": "SUCCESS",
+        "aecorsoft_result.$": "$.parse_result.Payload",
+        "add_partition_result.$": "$.add_partition_result"
       },
       "End": true
     },

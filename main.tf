@@ -18,6 +18,17 @@ locals {
     if try(table_config.enabled, true)
   }
 
+  enabled_lambdas = {
+    for lambda_key, lambda_config in try(local.deploy_config.lambda, {}) :
+    lambda_key => merge(
+      lambda_config,
+      {
+        source_path = abspath("${path.module}/${lambda_config.source_path}")
+      }
+    )
+    if try(lambda_config.enabled, true)
+  }
+
   common_tags = {
     environment = local.deploy_config.environment
     managed_by  = "terraform"
@@ -42,6 +53,7 @@ resource "aws_sfn_state_machine" "this" {
       table_name            = each.value.table_name
       wait_seconds          = each.value.wait_seconds
       commands_json         = jsonencode(each.value.commands)
+      parser_lambda_arn     = module.lambda[each.value.parser_lambda_key].function_arn
     }
   )
 
@@ -54,4 +66,15 @@ module "athena" {
 
   athena = each.value
   tags   = local.common_tags
+}
+
+module "lambda" {
+  for_each = local.enabled_lambdas
+  source   = "git::https://github.com/jhonnjc15/artifact3-terraform-templates.git//modules/lambda?ref=main"
+
+  artifact_bucket = var.artifact_bucket
+  lambda_role_arn = var.lambda_role_arn
+  lambda          = each.value
+  code_prefix     = "lambda/code/${local.deploy_config.environment}"
+  tags            = local.common_tags
 }

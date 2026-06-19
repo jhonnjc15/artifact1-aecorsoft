@@ -10,10 +10,14 @@ Orquestador (Artefacto 2)
     ▼
 Step Function Aecorsoft
     │
-    ├── RunScript
+    ├── RunAecorsoftCLI
     │   └── aws-sdk:ssm:sendCommand → EC2 ejecuta CLI Aecorsoft
     │
-    ├── WaitOutput (N segundos)
+    ├── WaitCommand / GetCommandInvocation
+    │   └── espera fin del comando SSM
+    │
+    ├── ParseAecorsoftResult
+    │   └── Lambda parser extrae estado, codproceso y ruta S3 desde logs
     │
     ├── ValidateS3Output
     │   └── aws-sdk:s3:listObjectsV2
@@ -27,6 +31,9 @@ Step Function Aecorsoft
 La tabla Glue/Athena se gestiona durante el despliegue usando el modulo
 `athena` del repositorio `artifact3-terraform-templates`. La Step Function solo
 agrega particiones durante cada ejecucion.
+
+La funcion Lambda parser se gestiona durante el despliegue usando el modulo
+`lambda` del mismo repositorio de templates.
 
 ## Estructura
 
@@ -42,7 +49,8 @@ artifact1-aecorsoft/
 ├── .github/workflows/terraform-dev.yml
 └── src/
     ├── state_machine/aecorsoft_sfn.json
-    └── sql/create_table_aecorsoft.sql
+    ├── sql/create_table_aecorsoft.sql
+    └── lambda/aecorsoft_parser/main.py
 ```
 
 ## Despliegue
@@ -54,6 +62,7 @@ artifact1-aecorsoft/
    - `AWS_SECRET_ACCESS_KEY`
    - `AWS_REGION`
    - `STEP_FUNCTION_ROLE_ARN`
+   - `LAMBDA_ROLE_ARN`
 4. Editar `deploy.json` con valores reales
 5. Ir a Actions → `Terraform dev - Artifact 1 Aecorsoft` → Run workflow
 
@@ -70,18 +79,32 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
       "enabled": true,
       "name": "sf-aecorsoft-integration-dev",
       "definition_path": "./src/state_machine/aecorsoft_sfn.json",
-      "bucket": "ue1stgtestas3dtl005-bronze",
-      "base_path": "UE1STGTESTS3LOG001/SAP/CSKT/br_cskt",
+      "bucket": "artifact1-aecorsoft-landing-850995559699-us-east-1",
+      "base_path": "AECORSOFT/aecorsoft_data",
+      "commands": [
+        "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
+        ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
+      ],
       "database_name": "db_aecorsoft_dev",
-      "table_name": "br_cskt",
-      "athena_table_key": "br_cskt"
+      "table_name": "aecorsoft_data",
+      "athena_table_key": "aecorsoft_data",
+      "parser_lambda_key": "aecorsoft_parser"
     }
   },
   "athena": {
-    "br_cskt": {
+    "aecorsoft_data": {
       "enabled": true,
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
       "merge_existing": false
+    }
+  },
+  "lambda": {
+    "aecorsoft_parser": {
+      "enabled": true,
+      "function_name": "lambda-aecorsoft-parser-dev",
+      "source_path": "./src/lambda/aecorsoft_parser",
+      "handler": "main.handler",
+      "runtime": "python3.11"
     }
   }
 }
@@ -91,6 +114,11 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
 bloque `athena`. El `LOCATION` de la tabla se define dentro del archivo SQL,
 igual que en el repo `artifact3-demo-consumer`.
 
+`parser_lambda_key` relaciona la Step Function con la Lambda parser definida en
+el bloque `lambda`. Esta Lambda recibe el output de `ssm:getCommandInvocation`,
+detecta si Aecorsoft termino en exito real, extrae el `codproceso` desde la ruta
+S3 reportada por Aecorsoft y retorna la particion que Athena debe registrar.
+
 Si la tabla no existe, el modulo Athena crea la base de datos Glue y la tabla. Si
 ya existe en el estado de Terraform y no hay cambios, Terraform no aplica
 cambios.
@@ -99,3 +127,4 @@ cambios.
 
 - 1 o mas Step Functions, segun `deploy.json`
 - Base de datos y tabla Glue/Athena, si `athena.<key>.enabled = true`
+- Funcion Lambda parser, si `lambda.<key>.enabled = true`

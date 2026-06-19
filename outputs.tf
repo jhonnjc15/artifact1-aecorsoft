@@ -19,3 +19,15 @@ output "glue_tables" {
     }
   }
 }
+
+output "lambda_functions" {
+  description = "Funciones Lambda creadas por el modulo Lambda."
+  value = {
+    for lambda_key, lambda_function in module.lambda :
+    lambda_key => {
+      function_name = lambda_function.function_name
+      function_arn  = lambda_function.function_arn
+      s3_key        = lambda_function.s3_key
+    }
+  }
+}

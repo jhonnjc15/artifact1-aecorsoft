@@ -16,7 +16,8 @@
       "database_name": "db_aecorsoft_dev",
       "table_name": "aecorsoft_data",
       "wait_seconds": 60,
-      "athena_table_key": "aecorsoft_data"
+      "athena_table_key": "aecorsoft_data",
+      "parser_lambda_key": "aecorsoft_parser"
     }
   },
   "athena": {
@@ -24,6 +25,18 @@
       "enabled": true,
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
       "merge_existing": false
+    }
+  },
+  "lambda": {
+    "aecorsoft_parser": {
+      "enabled": true,
+      "function_name": "lambda-aecorsoft-parser-dev",
+      "description": "Parser de logs Aecorsoft para extraer estado, codproceso y particion S3",
+      "source_path": "./src/lambda/aecorsoft_parser",
+      "handler": "main.handler",
+      "runtime": "python3.11",
+      "timeout": 30,
+      "memory_size": 256
     }
   }
 }

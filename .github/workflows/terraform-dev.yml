@@ -41,6 +41,7 @@ jobs:
           cat > dev.auto.tfvars <<EOF
           aws_region             = "${{ secrets.AWS_REGION }}"
           step_function_role_arn = "${{ secrets.STEP_FUNCTION_ROLE_ARN }}"
+          lambda_role_arn        = "${{ secrets.LAMBDA_ROLE_ARN }}"
           EOF
 
       - name: Terraform init
