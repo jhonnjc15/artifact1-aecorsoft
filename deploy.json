@@ -6,9 +6,9 @@
       "name": "sf-aecorsoft-integration-dev",
       "definition_path": "./src/state_machine/aecorsoft_sfn.json",
       "instance_id": "i-0972a8b5c48424e6e",
-      "bucket": "<bucket>",
-      "athena_results_bucket": "<bucket-athena-results>",
-      "base_path": "<ruta-base>",
+      "bucket": "artifact1-aecorsoft-landing-850995559699-us-east-1",
+      "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1",
+      "base_path": "AECORSOFT/aecorsoft_data",
       "commands": [
         "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
         ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
@@ -23,7 +23,7 @@
     "aecorsoft_data": {
       "enabled": true,
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
-      "merge_existing": true
+      "merge_existing": false
     }
   }
 }

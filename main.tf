@@ -7,27 +7,13 @@ locals {
     if try(sf_config.enabled, true)
   }
 
-  athena_table_location_groups = {
-    for sf_key, sf_config in local.enabled_step_functions :
-    sf_config.athena_table_key => "s3://${sf_config.bucket}/${sf_config.base_path}/"...
-    if try(sf_config.athena_table_key, null) != null
-  }
-
-  athena_table_locations = {
-    for table_key, locations in local.athena_table_location_groups :
-    table_key => locations[0]
-  }
-
   enabled_athena_tables = {
     for table_key, table_config in try(local.deploy_config.athena, {}) :
     table_key => merge(
       table_config,
       {
         sql_path = abspath("${path.module}/${table_config.sql_path}")
-      },
-      try(table_config.s3_location, null) == null && try(local.athena_table_locations[table_key], null) != null ? {
-        s3_location = local.athena_table_locations[table_key]
-      } : {}
+      }
     )
     if try(table_config.enabled, true)
   }

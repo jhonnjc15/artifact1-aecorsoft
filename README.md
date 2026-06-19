@@ -70,30 +70,30 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
       "enabled": true,
       "name": "sf-aecorsoft-integration-dev",
       "definition_path": "./src/state_machine/aecorsoft_sfn.json",
-      "bucket": "<bucket>",
-      "base_path": "<ruta-base>",
+      "bucket": "ue1stgtestas3dtl005-bronze",
+      "base_path": "UE1STGTESTS3LOG001/SAP/CSKT/br_cskt",
       "database_name": "db_aecorsoft_dev",
-      "table_name": "aecorsoft_data",
-      "athena_table_key": "aecorsoft_data"
+      "table_name": "br_cskt",
+      "athena_table_key": "br_cskt"
     }
   },
   "athena": {
-    "aecorsoft_data": {
+    "br_cskt": {
       "enabled": true,
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
-      "merge_existing": true
+      "merge_existing": false
     }
   }
 }
 ```
 
 `athena_table_key` relaciona la Step Function con la entrada correspondiente del
-bloque `athena`. Terraform deriva el `s3_location` desde `bucket` y `base_path`.
+bloque `athena`. El `LOCATION` de la tabla se define dentro del archivo SQL,
+igual que en el repo `artifact3-demo-consumer`.
 
 Si la tabla no existe, el modulo Athena crea la base de datos Glue y la tabla. Si
-ya existe y no hay cambios, Terraform no aplica cambios. Con `merge_existing =
-true`, el modulo preserva columnas existentes y agrega nuevas columnas definidas
-en el SQL.
+ya existe en el estado de Terraform y no hay cambios, Terraform no aplica
+cambios.
 
 ## Componentes AWS creados
 
