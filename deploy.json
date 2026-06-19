@@ -1,18 +1,29 @@
 {
   "environment": "dev",
-  "step_function": {
-    "name": "sf-aecorsoft-integration-dev",
-    "definition_path": "./src/state_machine/aecorsoft_sfn.json",
-    "instance_id": "i-0972a8b5c48424e6e",
-    "bucket": "<bucket>",
-    "athena_results_bucket": "<bucket-athena-results>",
-    "base_path": "<ruta-base>",
-    "commands": [
-      "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
-      ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
-    ],
-    "database_name": "<database>",
-    "table_name": "<table_name>",
-    "wait_seconds": 60
+  "step_functions": {
+    "aecorsoft_integration": {
+      "enabled": true,
+      "name": "sf-aecorsoft-integration-dev",
+      "definition_path": "./src/state_machine/aecorsoft_sfn.json",
+      "instance_id": "i-0972a8b5c48424e6e",
+      "bucket": "<bucket>",
+      "athena_results_bucket": "<bucket-athena-results>",
+      "base_path": "<ruta-base>",
+      "commands": [
+        "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
+        ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
+      ],
+      "database_name": "db_aecorsoft_dev",
+      "table_name": "aecorsoft_data",
+      "wait_seconds": 60,
+      "athena_table_key": "aecorsoft_data"
+    }
+  },
+  "athena": {
+    "aecorsoft_data": {
+      "enabled": true,
+      "sql_path": "./src/sql/create_table_aecorsoft.sql",
+      "merge_existing": true
+    }
   }
 }
