@@ -14,6 +14,6 @@ OUTPUTFORMAT
 LOCATION
   's3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/'
 TBLPROPERTIES (
-  'classification' = 'parquet'
+  'classification' = 'parquet',
   'table_type' = 'EXTERNAL_TABLE',
 );
