@@ -154,12 +154,7 @@
           "Next": "AddPartitionAthena"
         }
       ],
-      "Default": "WaitS3Output"
-    },
-    "WaitS3Output": {
-      "Type": "Wait",
-      "Seconds": ${wait_seconds},
-      "Next": "ValidateS3Output"
+      "Default": "NotifyFailureS3OutputNotFound"
     },
     "AddPartitionAthena": {
       "Type": "Task",
@@ -199,6 +194,11 @@
     "NotifyFailure": {
       "Type": "Fail",
       "Cause": "Error en la ejecucion de la Step Function Aecorsoft"
+    },
+    "NotifyFailureS3OutputNotFound": {
+      "Type": "Fail",
+      "Error": "S3OutputNotFound",
+      "Cause": "Aecorsoft reporto SUCCESS pero no se encontraron objetos en la particion S3."
     }
   }
 }

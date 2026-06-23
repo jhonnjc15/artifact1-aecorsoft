@@ -119,6 +119,12 @@ el bloque `lambda`. Esta Lambda recibe el output de `ssm:getCommandInvocation`,
 detecta si Aecorsoft termino en exito real, extrae el `codproceso` desde la ruta
 S3 reportada por Aecorsoft y retorna la particion que Athena debe registrar.
 
+La Lambda considera exitosa la ejecucion de Aecorsoft solo si el comando SSM
+termina en `Success`, el log contiene `Task completed.`, contiene `Upload: done.`
+y existe una ruta S3 con `codproceso=`. Luego la Step Function valida una sola
+vez que existan objetos en esa particion S3; si no existen, falla con
+`S3OutputNotFound`.
+
 Si la tabla no existe, el modulo Athena crea la base de datos Glue y la tabla. Si
 ya existe en el estado de Terraform y no hay cambios, Terraform no aplica
 cambios.

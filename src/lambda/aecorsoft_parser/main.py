@@ -30,6 +30,9 @@ def handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
     if not re.search(r"(?i)task\s+completed\.", combined_log):
         return _failure("No se encontro senal de exito 'Task completed.' en el log Aecorsoft.", event)
 
+    if not re.search(r"(?i)upload:\s*done\.", combined_log):
+        return _failure("No se encontro senal de exito 'Upload: done.' en el log Aecorsoft.", event)
+
     s3_matches = re.findall(r"(?i)S3 file\s+'([^']+)'", combined_log)
     if not s3_matches:
         return _failure("No se encontro ruta S3 generada por Aecorsoft en el log.", event)
