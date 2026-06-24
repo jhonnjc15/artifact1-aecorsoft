@@ -37,7 +37,7 @@ locals {
       table_config,
       {
         sql_path      = abspath("${path.module}/${table_config.sql_path}")
-        database_name = try(trimspace(table_config.database_name), "") != "" ? "${trimspace(table_config.database_name)}_${var.environment}" : null
+        database_name = try(trimspace(table_config.database_name), "") != "" ? trimspace(table_config.database_name) : null
         s3_location = try(trimspace(table_config.s3_location), "") != "" ? trimspace(table_config.s3_location) : (
           local.athena_table_step_function_keys[table_key] != null
           ? local.step_function_environment_values[local.athena_table_step_function_keys[table_key]].s3_location
@@ -54,7 +54,7 @@ locals {
       lambda_config,
       {
         source_path   = abspath("${path.module}/${lambda_config.source_path}")
-        function_name = "${trimspace(lambda_config.function_name)}-${var.environment}"
+        function_name = trimspace(lambda_config.function_name)
       }
     )
     if try(lambda_config.enabled, true) && contains(try(lambda_config.enabled_environments, local.environments), var.environment)
@@ -70,7 +70,7 @@ locals {
 resource "aws_sfn_state_machine" "this" {
   for_each = local.enabled_step_functions
 
-  name     = "${each.value.name}-${var.environment}"
+  name     = each.value.name
   role_arn = var.step_function_role_arn
 
   definition = templatefile(
@@ -80,7 +80,7 @@ resource "aws_sfn_state_machine" "this" {
       bucket                = local.step_function_s3_parts[each.key][0]
       athena_results_bucket = local.step_function_environment_values[each.key].athena_results_bucket
       base_path             = "${local.step_function_s3_parts[each.key][1]}/"
-      database_name         = "${each.value.database_name}_${var.environment}"
+      database_name         = each.value.database_name
       table_name            = each.value.table_name
       wait_seconds          = each.value.wait_seconds
       commands_json         = jsonencode(each.value.commands)

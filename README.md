@@ -60,11 +60,12 @@ artifact1-aecorsoft/
 3. Configurar secrets en GitHub Actions:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
+4. Configurar variables en GitHub Environment `qas`:
    - `AWS_REGION`
    - `STEP_FUNCTION_ROLE_ARN`
    - `LAMBDA_ROLE_ARN`
-4. Editar `deploy.json` con valores reales
-5. Ir a Actions → `Terraform qas - Artifact 1 Aecorsoft` → Run workflow
+5. Editar `deploy.json` con valores reales
+6. Ir a Actions → `Terraform qas - Artifact 1 Aecorsoft` → Run workflow
 
 El workflow actual despliega solo `qas` y usa state separado en
 `state/qas/artifact1-aecorsoft/terraform.tfstate`. Los ambientes `dev` y `prd`
@@ -124,9 +125,9 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
 ```
 
 `athena_table_key` relaciona la Step Function con la entrada correspondiente del
-bloque `athena`. Terraform deriva los nombres finales con `var.environment`: por
-ejemplo, `sf-aecorsoft-integration-qas`, `db_aecorsoft_qas` y
-`lambda-aecorsoft-parser-qas`.
+bloque `athena`. Como cada ambiente vive en una cuenta AWS distinta, Terraform no
+agrega sufijos de ambiente a los nombres fisicos: usa `sf-aecorsoft-integration`,
+`db_aecorsoft` y `lambda-aecorsoft-parser`.
 
 `environment_values.qas.s3_location` define la ruta S3 fisica para QAS. Terraform
 la usa como `s3_location` de Athena y tambien separa bucket/prefix para la Step
