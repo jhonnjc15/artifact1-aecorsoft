@@ -30,7 +30,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Verify AWS identity
         run: aws sts get-caller-identity
@@ -39,16 +39,19 @@ jobs:
         working-directory: artifact1-aecorsoft
         run: |
           cat > qas.auto.tfvars <<EOF
-          aws_region             = "${{ vars.AWS_REGION }}"
-          step_function_role_arn = "${{ vars.STEP_FUNCTION_ROLE_ARN }}"
-          lambda_role_arn        = "${{ vars.LAMBDA_ROLE_ARN }}"
+          aws_region             = "${{ secrets.AWS_REGION }}"
+          step_function_role_arn = "${{ secrets.STEP_FUNCTION_ROLE_ARN }}"
+          lambda_role_arn        = "${{ secrets.LAMBDA_ROLE_ARN }}"
           EOF
 
       - name: Terraform init
         working-directory: artifact1-aecorsoft
         run: |
           terraform init \
-            -backend-config="key=state/qas/${{ github.event.repository.name }}/terraform.tfstate"
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="key=state/${{ github.event.repository.name }}/terraform.tfstate" \
+            -backend-config="encrypt=true"
 
       - name: Terraform plan
         working-directory: artifact1-aecorsoft
