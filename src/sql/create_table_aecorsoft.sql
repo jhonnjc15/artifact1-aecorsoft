@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE IF NOT EXISTS db_aecorsoft_dev.aecorsoft_data (
+CREATE EXTERNAL TABLE IF NOT EXISTS db_aecorsoft_qas.aecorsoft_data (
   kostl STRING,
   ktext STRING
 )

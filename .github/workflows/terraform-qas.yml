@@ -1,4 +1,4 @@
-name: Terraform dev - Artifact 1 Aecorsoft
+name: Terraform qas - Artifact 1 Aecorsoft
 
 on:
   workflow_dispatch:
@@ -35,10 +35,10 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      - name: Create dev.auto.tfvars
+      - name: Create qas.auto.tfvars
         working-directory: artifact1-aecorsoft
         run: |
-          cat > dev.auto.tfvars <<EOF
+          cat > qas.auto.tfvars <<EOF
           aws_region             = "${{ secrets.AWS_REGION }}"
           step_function_role_arn = "${{ secrets.STEP_FUNCTION_ROLE_ARN }}"
           lambda_role_arn        = "${{ secrets.LAMBDA_ROLE_ARN }}"
@@ -48,12 +48,13 @@ jobs:
         working-directory: artifact1-aecorsoft
         run: |
           terraform init \
-            -backend-config="key=state/${{ github.event.repository.name }}/terraform.tfstate"
+            -backend-config="key=state/qas/${{ github.event.repository.name }}/terraform.tfstate"
 
       - name: Terraform plan
         working-directory: artifact1-aecorsoft
         run: |
           terraform plan -out=tfplan \
+            -var="environment=qas" \
             -var="github_repository=${{ github.repository }}"
 
       - name: Terraform apply

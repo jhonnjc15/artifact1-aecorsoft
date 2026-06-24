@@ -1,39 +1,43 @@
 {
-  "environment": "dev",
   "step_functions": {
     "aecorsoft_integration": {
       "enabled": true,
-      "name": "sf-aecorsoft-integration-dev",
+      "enabled_environments": ["qas"],
+      "name": "sf-aecorsoft-integration",
       "definition_path": "./src/state_machine/aecorsoft_sfn.json",
-      "instance_id": "i-0972a8b5c48424e6e",
-      "bucket": "s3://ue1stgtestas3dtl001-landing/",
-      "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1",
-      "base_path": "UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
       "commands": [
         "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
         ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
       ],
-      "database_name": "db_aecorsoft_dev",
+      "database_name": "db_aecorsoft",
       "table_name": "aecorsoft_data",
       "wait_seconds": 60,
       "athena_table_key": "aecorsoft_data",
-      "parser_lambda_key": "aecorsoft_parser"
+      "parser_lambda_key": "aecorsoft_parser",
+      "environment_values": {
+        "qas": {
+          "instance_id": "i-0972a8b5c48424e6e",
+          "s3_location": "s3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
+          "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1"
+        }
+      }
     }
   },
   "athena": {
     "aecorsoft_data": {
       "enabled": true,
+      "enabled_environments": ["qas"],
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
-      "database_name": "db_aecorsoft_dev",
+      "database_name": "db_aecorsoft",
       "table_name": "aecorsoft_data",
-      "s3_location": "s3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
       "merge_existing": false
     }
   },
   "lambda": {
     "aecorsoft_parser": {
       "enabled": true,
-      "function_name": "lambda-aecorsoft-parser-dev",
+      "enabled_environments": ["qas"],
+      "function_name": "lambda-aecorsoft-parser",
       "description": "Parser de logs Aecorsoft para extraer estado, codproceso y particion S3",
       "source_path": "./src/lambda/aecorsoft_parser",
       "handler": "main.handler",

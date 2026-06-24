@@ -46,7 +46,7 @@ artifact1-aecorsoft/
 ├── versions.tf
 ├── backend.tf
 ├── terraform.tfvars.example
-├── .github/workflows/terraform-dev.yml
+├── .github/workflows/terraform-qas.yml
 └── src/
     ├── state_machine/aecorsoft_sfn.json
     ├── sql/create_table_aecorsoft.sql
@@ -64,7 +64,11 @@ artifact1-aecorsoft/
    - `STEP_FUNCTION_ROLE_ARN`
    - `LAMBDA_ROLE_ARN`
 4. Editar `deploy.json` con valores reales
-5. Ir a Actions → `Terraform dev - Artifact 1 Aecorsoft` → Run workflow
+5. Ir a Actions → `Terraform qas - Artifact 1 Aecorsoft` → Run workflow
+
+El workflow actual despliega solo `qas` y usa state separado en
+`state/qas/artifact1-aecorsoft/terraform.tfstate`. Los ambientes `dev` y `prd`
+quedan preparados para una fase posterior.
 
 ## Manifest `deploy.json`
 
@@ -73,35 +77,44 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
 
 ```json
 {
-  "environment": "dev",
   "step_functions": {
     "aecorsoft_integration": {
       "enabled": true,
-      "name": "sf-aecorsoft-integration-dev",
+      "enabled_environments": ["qas"],
+      "name": "sf-aecorsoft-integration",
       "definition_path": "./src/state_machine/aecorsoft_sfn.json",
-      "bucket": "artifact1-aecorsoft-landing-850995559699-us-east-1",
-      "base_path": "AECORSOFT/aecorsoft_data",
       "commands": [
         "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
         ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
       ],
-      "database_name": "db_aecorsoft_dev",
+      "database_name": "db_aecorsoft",
       "table_name": "aecorsoft_data",
       "athena_table_key": "aecorsoft_data",
-      "parser_lambda_key": "aecorsoft_parser"
+      "parser_lambda_key": "aecorsoft_parser",
+      "environment_values": {
+        "qas": {
+          "instance_id": "i-0972a8b5c48424e6e",
+          "s3_location": "s3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
+          "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1"
+        }
+      }
     }
   },
   "athena": {
     "aecorsoft_data": {
       "enabled": true,
+      "enabled_environments": ["qas"],
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
+      "database_name": "db_aecorsoft",
+      "table_name": "aecorsoft_data",
       "merge_existing": false
     }
   },
   "lambda": {
     "aecorsoft_parser": {
       "enabled": true,
-      "function_name": "lambda-aecorsoft-parser-dev",
+      "enabled_environments": ["qas"],
+      "function_name": "lambda-aecorsoft-parser",
       "source_path": "./src/lambda/aecorsoft_parser",
       "handler": "main.handler",
       "runtime": "python3.11"
@@ -111,8 +124,13 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
 ```
 
 `athena_table_key` relaciona la Step Function con la entrada correspondiente del
-bloque `athena`. El `LOCATION` de la tabla se define dentro del archivo SQL,
-igual que en el repo `artifact3-demo-consumer`.
+bloque `athena`. Terraform deriva los nombres finales con `var.environment`: por
+ejemplo, `sf-aecorsoft-integration-qas`, `db_aecorsoft_qas` y
+`lambda-aecorsoft-parser-qas`.
+
+`environment_values.qas.s3_location` define la ruta S3 fisica para QAS. Terraform
+la usa como `s3_location` de Athena y tambien separa bucket/prefix para la Step
+Function.
 
 `parser_lambda_key` relaciona la Step Function con la Lambda parser definida en
 el bloque `lambda`. Esta Lambda recibe el output de `ssm:getCommandInvocation`,

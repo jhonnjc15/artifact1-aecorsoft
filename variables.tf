@@ -4,6 +4,17 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "environment" {
+  description = "Ambiente objetivo del despliegue. Actualmente se usa qas; dev/prd quedan preparados para una fase posterior."
+  type        = string
+  default     = "qas"
+
+  validation {
+    condition     = contains(["dev", "qas", "prd"], var.environment)
+    error_message = "environment debe ser uno de: dev, qas, prd."
+  }
+}
+
 variable "step_function_role_arn" {
   description = "ARN del IAM Role existente para AWS Step Functions."
   type        = string
