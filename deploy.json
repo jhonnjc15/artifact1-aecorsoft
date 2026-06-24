@@ -6,9 +6,9 @@
       "name": "sf-aecorsoft-integration-dev",
       "definition_path": "./src/state_machine/aecorsoft_sfn.json",
       "instance_id": "i-0972a8b5c48424e6e",
-      "bucket": "artifact1-aecorsoft-landing-850995559699-us-east-1",
+      "bucket": "s3://ue1stgtestas3dtl001-landing/",
       "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1",
-      "base_path": "AECORSOFT/aecorsoft_data",
+      "base_path": "UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
       "commands": [
         "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
         ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
@@ -24,6 +24,9 @@
     "aecorsoft_data": {
       "enabled": true,
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
+      "database_name": "db_aecorsoft_dev",
+      "table_name": "aecorsoft_data",
+      "s3_location": "s3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
       "merge_existing": false
     }
   },

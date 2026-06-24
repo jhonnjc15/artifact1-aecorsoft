@@ -15,5 +15,5 @@ LOCATION
   's3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/'
 TBLPROPERTIES (
   'classification' = 'parquet',
-  'table_type' = 'EXTERNAL_TABLE',
+  'table_type' = 'EXTERNAL_TABLE'
 );
