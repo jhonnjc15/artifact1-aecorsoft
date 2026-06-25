@@ -4,7 +4,6 @@ locals {
 
   raw_step_functions = try(local.deploy_config.step_functions, {})
   raw_athena_tables  = try(local.deploy_config.athena, {})
-  raw_lambdas        = try(local.deploy_config.lambda, {})
 
   enabled_step_functions = {
     for sf_key, sf_config in local.raw_step_functions :
@@ -48,18 +47,6 @@ locals {
     if try(table_config.enabled, true) && contains(try(table_config.enabled_environments, local.environments), var.environment)
   }
 
-  enabled_lambdas = {
-    for lambda_key, lambda_config in local.raw_lambdas :
-    lambda_key => merge(
-      lambda_config,
-      {
-        source_path   = abspath("${path.module}/${lambda_config.source_path}")
-        function_name = trimspace(lambda_config.function_name)
-      }
-    )
-    if try(lambda_config.enabled, true) && contains(try(lambda_config.enabled_environments, local.environments), var.environment)
-  }
-
   common_tags = {
     environment = var.environment
     managed_by  = "terraform"
@@ -84,7 +71,7 @@ resource "aws_sfn_state_machine" "this" {
       table_name            = each.value.table_name
       wait_seconds          = each.value.wait_seconds
       commands_json         = jsonencode(each.value.commands)
-      parser_lambda_arn     = module.lambda[each.value.parser_lambda_key].function_arn
+      parser_lambda_arn     = local.step_function_environment_values[each.key].parser_lambda_arn
     }
   )
 
@@ -97,15 +84,4 @@ module "athena" {
 
   athena = each.value
   tags   = local.common_tags
-}
-
-module "lambda" {
-  for_each = local.enabled_lambdas
-  source   = "git::https://github.com/jhonnjc15/artifact3-terraform-templates.git//modules/lambda?ref=main"
-
-  artifact_bucket = var.artifact_bucket
-  lambda_role_arn = var.lambda_role_arn
-  lambda          = each.value
-  code_prefix     = "lambda/code/${var.environment}"
-  tags            = local.common_tags
 }

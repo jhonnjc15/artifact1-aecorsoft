@@ -32,8 +32,8 @@ La tabla Glue/Athena se gestiona durante el despliegue usando el modulo
 `athena` del repositorio `artifact3-terraform-templates`. La Step Function solo
 agrega particiones durante cada ejecucion.
 
-La funcion Lambda parser se gestiona durante el despliegue usando el modulo
-`lambda` del mismo repositorio de templates.
+La funcion Lambda parser es compartida y debe existir previamente en AWS. Este
+artefacto solo referencia su ARN desde `deploy.json`.
 
 ## Estructura
 
@@ -49,8 +49,7 @@ artifact1-aecorsoft/
 ├── .github/workflows/terraform-qas.yml
 └── src/
     ├── state_machine/aecorsoft_sfn.json
-    ├── sql/create_table_aecorsoft.sql
-    └── lambda/aecorsoft_parser/main.py
+    └── sql/create_table_aecorsoft.sql
 ```
 
 ## Despliegue
@@ -60,16 +59,16 @@ artifact1-aecorsoft/
 3. Configurar secrets en GitHub Actions:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
-4. Configurar variables en GitHub Environment `qas`:
+4. Configurar secrets en GitHub Environment `qas`:
    - `AWS_REGION`
    - `STEP_FUNCTION_ROLE_ARN`
-   - `LAMBDA_ROLE_ARN`
 5. Editar `deploy.json` con valores reales
 6. Ir a Actions → `Terraform qas - Artifact 1 Aecorsoft` → Run workflow
 
 El workflow actual despliega solo `qas` y usa state separado en
-`state/qas/artifact1-aecorsoft/terraform.tfstate`. Los ambientes `dev` y `prd`
-quedan preparados para una fase posterior.
+`state/artifact1-aecorsoft/terraform.tfstate`. Los ambientes `dev` y `prd`
+quedan preparados para una fase posterior mediante cuentas/buckets de state
+separados.
 
 ## Manifest `deploy.json`
 
@@ -91,12 +90,12 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
       "database_name": "db_aecorsoft",
       "table_name": "aecorsoft_data",
       "athena_table_key": "aecorsoft_data",
-      "parser_lambda_key": "aecorsoft_parser",
       "environment_values": {
         "qas": {
           "instance_id": "i-0972a8b5c48424e6e",
           "s3_location": "s3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
-          "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1"
+          "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1",
+          "parser_lambda_arn": "arn:aws:lambda:us-east-1:850995559699:function:lambda-aecorsoft-parser-dev"
         }
       }
     }
@@ -110,33 +109,23 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
       "table_name": "aecorsoft_data",
       "merge_existing": false
     }
-  },
-  "lambda": {
-    "aecorsoft_parser": {
-      "enabled": true,
-      "enabled_environments": ["qas"],
-      "function_name": "lambda-aecorsoft-parser",
-      "source_path": "./src/lambda/aecorsoft_parser",
-      "handler": "main.handler",
-      "runtime": "python3.11"
-    }
   }
 }
 ```
 
 `athena_table_key` relaciona la Step Function con la entrada correspondiente del
 bloque `athena`. Como cada ambiente vive en una cuenta AWS distinta, Terraform no
-agrega sufijos de ambiente a los nombres fisicos: usa `sf-aecorsoft-integration`,
-`db_aecorsoft` y `lambda-aecorsoft-parser`.
+agrega sufijos de ambiente a los nombres fisicos: usa `sf-aecorsoft-integration`
+y `db_aecorsoft`.
 
 `environment_values.qas.s3_location` define la ruta S3 fisica para QAS. Terraform
 la usa como `s3_location` de Athena y tambien separa bucket/prefix para la Step
 Function.
 
-`parser_lambda_key` relaciona la Step Function con la Lambda parser definida en
-el bloque `lambda`. Esta Lambda recibe el output de `ssm:getCommandInvocation`,
-detecta si Aecorsoft termino en exito real, extrae el `codproceso` desde la ruta
-S3 reportada por Aecorsoft y retorna la particion que Athena debe registrar.
+`environment_values.qas.parser_lambda_arn` referencia la Lambda parser compartida.
+Esta Lambda recibe el output de `ssm:getCommandInvocation`, detecta si Aecorsoft
+termino en exito real, extrae el `codproceso` desde la ruta S3 reportada por
+Aecorsoft y retorna la particion que Athena debe registrar.
 
 La Lambda considera exitosa la ejecucion de Aecorsoft solo si el comando SSM
 termina en `Success`, el log contiene `Task completed.`, contiene `Upload: done.`
@@ -152,4 +141,3 @@ cambios.
 
 - 1 o mas Step Functions, segun `deploy.json`
 - Base de datos y tabla Glue/Athena, si `athena.<key>.enabled = true`
-- Funcion Lambda parser, si `lambda.<key>.enabled = true`

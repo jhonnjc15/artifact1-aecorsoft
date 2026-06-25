@@ -1,5 +1,3 @@
 aws_region             = "us-east-1"
 environment            = "qas"
 step_function_role_arn = "arn:aws:iam::123456789012:role/sf-aecorsoft-role"
-artifact_bucket        = "sf-datalake-850995559699-artifacts"
-lambda_role_arn        = "arn:aws:iam::123456789012:role/lambda-aecorsoft-parser-role"

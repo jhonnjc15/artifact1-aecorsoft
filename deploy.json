@@ -13,12 +13,12 @@
       "table_name": "aecorsoft_data",
       "wait_seconds": 60,
       "athena_table_key": "aecorsoft_data",
-      "parser_lambda_key": "aecorsoft_parser",
       "environment_values": {
         "qas": {
           "instance_id": "i-0972a8b5c48424e6e",
           "s3_location": "s3://ue1stgtestas3dtl001-landing/UE1STGTESTS3LOG001/SAP/CSKT/prueba/",
-          "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1"
+          "athena_results_bucket": "artifact1-aecorsoft-athena-850995559699-us-east-1",
+          "parser_lambda_arn": "arn:aws:lambda:us-east-1:850995559699:function:lambda-aecorsoft-parser-dev"
         }
       }
     }
@@ -31,19 +31,6 @@
       "database_name": "db_aecorsoft",
       "table_name": "aecorsoft_data",
       "merge_existing": false
-    }
-  },
-  "lambda": {
-    "aecorsoft_parser": {
-      "enabled": true,
-      "enabled_environments": ["qas"],
-      "function_name": "lambda-aecorsoft-parser",
-      "description": "Parser de logs Aecorsoft para extraer estado, codproceso y particion S3",
-      "source_path": "./src/lambda/aecorsoft_parser",
-      "handler": "main.handler",
-      "runtime": "python3.11",
-      "timeout": 30,
-      "memory_size": 256
     }
   }
 }
