@@ -2,6 +2,8 @@
 
 **Artefacto 1** — Integracion Aecorsoft con AWS Step Functions.
 
+Guia funcional detallada: [`DOCUMENTO_FUNCIONAL.md`](DOCUMENTO_FUNCIONAL.md).
+
 ## Arquitectura
 
 ```
@@ -56,14 +58,14 @@ artifact1-aecorsoft/
 
 1. Crear repo `artifact1-aecorsoft` en GitHub
 2. Subir el codigo
-3. Configurar secrets en GitHub Actions:
+3. Configurar secrets en GitHub Environment `qas`:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
-4. Configurar secrets en GitHub Environment `qas`:
    - `AWS_REGION`
+   - `TF_STATE_BUCKET`
    - `STEP_FUNCTION_ROLE_ARN`
-5. Editar `deploy.json` con valores reales
-6. Ir a Actions → `Terraform qas - Artifact 1 Aecorsoft` → Run workflow
+4. Editar `deploy.json` con valores reales
+5. Ir a Actions → `Terraform qas - Artifact 1 Aecorsoft` → Run workflow
 
 El workflow actual despliega solo `qas` y usa state separado en
 `state/artifact1-aecorsoft/terraform.tfstate`. Los ambientes `dev` y `prd`
@@ -77,6 +79,14 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
 
 ```json
 {
+  "databases": {
+    "aecorsoft": {
+      "enabled": true,
+      "enabled_environments": ["qas"],
+      "name": "db_aecorsoft",
+      "mode": "create"
+    }
+  },
   "step_functions": {
     "aecorsoft_integration": {
       "enabled": true,
@@ -87,8 +97,6 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
         "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
         ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
       ],
-      "database_name": "db_aecorsoft",
-      "table_name": "aecorsoft_data",
       "athena_table_key": "aecorsoft_data",
       "environment_values": {
         "qas": {
@@ -105,7 +113,7 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
       "enabled": true,
       "enabled_environments": ["qas"],
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
-      "database_name": "db_aecorsoft",
+      "database_key": "aecorsoft",
       "table_name": "aecorsoft_data",
       "merge_existing": false
     }
@@ -113,10 +121,11 @@ El manifiesto separa la orquestacion (`step_functions`) de la creacion de tablas
 }
 ```
 
-`athena_table_key` relaciona la Step Function con la entrada correspondiente del
-bloque `athena`. Como cada ambiente vive en una cuenta AWS distinta, Terraform no
-agrega sufijos de ambiente a los nombres fisicos: usa `sf-aecorsoft-integration`
-y `db_aecorsoft`.
+`databases.aecorsoft` declara `db_aecorsoft` una sola vez y `athena.aecorsoft_data`
+la referencia mediante `database_key`. `athena_table_key` relaciona la Step
+Function con la entrada correspondiente del bloque `athena`. Como cada ambiente
+vive en una cuenta AWS distinta, Terraform no agrega sufijos de ambiente a los
+nombres fisicos: usa `sf-aecorsoft-integration` y `db_aecorsoft`.
 
 `environment_values.qas.s3_location` define la ruta S3 fisica para QAS. Terraform
 la usa como `s3_location` de Athena y tambien separa bucket/prefix para la Step
@@ -141,3 +150,10 @@ cambios.
 
 - 1 o mas Step Functions, segun `deploy.json`
 - Base de datos y tabla Glue/Athena, si `athena.<key>.enabled = true`
+
+## Pendientes criticos
+
+- Reemplazar `XXXXXX`, `TU_USUARIO` y `TU_PASSWORD` en los comandos Aecorsoft.
+- Confirmar que `lambda-aecorsoft-parser-dev` es la Lambda parser correcta para QAS.
+- Revisar/migrar state antes de `apply` si anteriormente se uso otra key.
+- Resolver permisos IAM con explicit deny antes de un despliegue real.

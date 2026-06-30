@@ -1,4 +1,12 @@
 {
+  "databases": {
+    "aecorsoft": {
+      "enabled": true,
+      "enabled_environments": ["qas"],
+      "name": "db_aecorsoft",
+      "mode": "create"
+    }
+  },
   "step_functions": {
     "aecorsoft_integration": {
       "enabled": true,
@@ -9,8 +17,6 @@
         "Set-Location 'C:\\Program Files\\AecorSoft\\AecorSoft Data Integrator'",
         ".\\adimgr.exe run -t XXXXXX -u TU_USUARIO:TU_PASSWORD"
       ],
-      "database_name": "db_aecorsoft",
-      "table_name": "aecorsoft_data",
       "wait_seconds": 60,
       "athena_table_key": "aecorsoft_data",
       "environment_values": {
@@ -28,7 +34,7 @@
       "enabled": true,
       "enabled_environments": ["qas"],
       "sql_path": "./src/sql/create_table_aecorsoft.sql",
-      "database_name": "db_aecorsoft",
+      "database_key": "aecorsoft",
       "table_name": "aecorsoft_data",
       "merge_existing": false
     }
